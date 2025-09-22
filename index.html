@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="es">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Redirección a WhatsApp</title>
+  <title>Redirección a WhatsApp (con CAPTCHA)</title>
   <meta name="robots" content="noindex,nofollow" />
   <style>
     :root { --bg:#0f172a; --card:#111827; --text:#e5e7eb; --muted:#9ca3af; }
@@ -11,38 +11,41 @@
     body {
       margin: 0; min-height: 100svh; display: grid; place-items: center;
       background: radial-gradient(1200px 800px at 20% -10%, #1f2937 0%, #0b1120 40%, var(--bg) 100%);
-      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Helvetica Neue", Arial, "Noto Sans";
       color: var(--text);
     }
     .card {
-      width: min(520px, 92vw); padding: 24px 22px; border-radius: 16px;
+      width: min(640px, 94vw); padding: 24px 22px; border-radius: 12px;
       background: linear-gradient(180deg, #0b1220 0%, #0e1627 100%);
       border: 1px solid rgba(255,255,255,.06); box-shadow: 0 10px 30px rgba(0,0,0,.35);
     }
-    h1 { font-size: 22px; margin: 0 0 8px; letter-spacing:.2px; }
+    h1 { font-size: 20px; margin: 0 0 8px; }
     p { margin: 8px 0; color: var(--muted); line-height: 1.4; }
-    .row { display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap: wrap; }
+    .row { display:flex; align-items:center; gap:10px; margin-top:12px; flex-wrap:wrap; }
     .btn {
-      appearance: none; border: 0; border-radius: 12px; padding: 12px 16px;
-      background: #22c55e; color: #051b0b; font-weight: 700; cursor: pointer;
-      transition: transform .06s ease, filter .2s ease; text-decoration: none;
+      appearance: none; border: 0; border-radius: 10px; padding: 10px 14px;
+      background: #22c55e; color: #051b0b; font-weight:700; cursor:pointer; text-decoration:none;
       display:inline-flex; align-items:center; gap:8px;
     }
-    .btn:hover { filter: brightness(1.05); transform: translateY(-1px); }
-    .ghost {
-      background: transparent; color: var(--text); border: 1px dashed rgba(255,255,255,.2);
-    }
-    code {
-      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
-      background: rgba(255,255,255,.06); padding:.2em .45em; border-radius:8px; color:#e2e8f0;
-    }
-    .status { display:flex; align-items:center; gap:10px; margin-top: 14px; }
-    .dot {
-      width: 10px; height: 10px; border-radius: 50%; background: #22c55e; box-shadow: 0 0 16px #22c55e66;
-      animation: pulse 1.2s infinite ease-in-out;
-    }
+    .ghost { background: transparent; color: var(--text); border: 1px dashed rgba(255,255,255,.12); }
+    .status { display:flex; align-items:center; gap:10px; margin-top: 12px; }
+    .dot { width:10px; height:10px; border-radius:50%; background:#22c55e; box-shadow:0 0 16px #22c55e66; animation:pulse 1.2s infinite; }
     @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.35)} }
-    .small { font-size: 12px; opacity:.8 }
+    /* modal captcha */
+    .modal-backdrop {
+      position: fixed; inset: 0; display: none; place-items: center; z-index: 9999;
+      background: rgba(2,6,23,.6); padding: 20px;
+    }
+    .captcha-box {
+      width: min(560px, 96vw); border-radius: 12px; padding: 18px;
+      background: linear-gradient(180deg,#071022,#0b1220); border:1px solid rgba(255,255,255,.06);
+      box-shadow: 0 10px 30px rgba(0,0,0,.6);
+    }
+    .captcha-row { display:flex; gap:10px; align-items:center; margin-top:10px; }
+    input[type="number"], input[type="text"], input[type="range"] { padding:8px 10px; border-radius:8px; border:1px solid rgba(255,255,255,.06); background: rgba(255,255,255,.02); color:var(--text); width:100%; }
+    .hint { font-size:13px; color:var(--muted); margin-top:8px; }
+    .hidden-honeypot { position:absolute; left:-9999px; top:auto; width:1px; height:1px; overflow:hidden; }
+    @media (max-width:420px) { .row { flex-direction:column; align-items:stretch } }
   </style>
 </head>
 <body>
@@ -53,99 +56,262 @@
     <div class="status"><span class="dot" aria-hidden="true"></span><span id="status-text">Preparando enlace…</span></div>
 
     <div class="row">
-      <a id="open-now" class="btn" href="#" rel="noopener">Abrir ahora</a>
+      <a id="open-now" class="btn ghost" href="#" rel="noopener" aria-disabled="true">Abrir ahora</a>
       <button id="copy-link" class="btn ghost" type="button">Copiar enlace</button>
+      <!-- Ejemplo de botón extra que tenías: -->
+      <a id="btnJugar" class="btn ghost" href="https://wa.link/6ehldo">Jugar</a>
     </div>
 
     <noscript>
       <p><strong>JavaScript está deshabilitado.</strong> Abrí manualmente este enlace:</p>
-      <p><a href="https://wa.me/5989XXXXXXXX?text=Hola%20%F0%9F%91%8B%20vengo%20desde%20la%20web." class="btn">Abrir WhatsApp</a></p>
+      <p><a href="https://wa.me/5989XXXXXXXX?text=Hola" class="btn">Abrir WhatsApp</a></p>
     </noscript>
   </main>
 
+  <!-- CAPTCHA modal -->
+  <div id="captcha-modal" class="modal-backdrop" aria-hidden="true">
+    <div class="captcha-box" role="dialog" aria-modal="true" aria-labelledby="captcha-title">
+      <h2 id="captcha-title">Verificación humana</h2>
+      <p class="hint">Para continuar, resolvé el desafío rápido. Esto ayuda a filtrar bots.</p>
+
+      <!-- honeypot -->
+      <div class="hidden-honeypot" aria-hidden="true">
+        <label>Si ves esto, dejalo vacío: <input id="hp" name="website" type="text" autocomplete="off" /></label>
+      </div>
+
+      <!-- math -->
+      <div style="margin-top:10px;">
+        <label for="mathAnswer">¿Cuánto es <strong id="math-question">0 + 0</strong>?</label>
+        <div class="captcha-row">
+          <input id="mathAnswer" type="number" inputmode="numeric" autocomplete="off" aria-label="Respuesta matemática" />
+          <button id="checkMath" class="btn ghost" type="button">Verificar</button>
+        </div>
+      </div>
+
+      <!-- slider -->
+      <div style="margin-top:12px;">
+        <label for="humanSlider">Deslizá para confirmar que sos humano</label>
+        <div class="captcha-row" style="flex-direction:column; align-items:stretch;">
+          <input id="humanSlider" class="slider" type="range" min="0" max="100" value="0" aria-label="Deslizar para confirmar" />
+          <small id="slider-hint" class="hint">Arrastralo hasta el final (100).</small>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:8px; margin-top:14px; justify-content:flex-end;">
+        <button id="refreshCaptcha" class="btn ghost" type="button">Regenerar</button>
+        <button id="closeCaptcha" class="btn" type="button" disabled>Continuar</button>
+      </div>
+      <p id="captcha-feedback" class="hint" style="margin-top:8px; color:#fca5a5; display:none;">Respuesta incorrecta o comportamiento sospechoso.</p>
+    </div>
+  </div>
+
   <script>
-    // ========= CONFIGURACIÓN =========
-    // Cambiá por tu número (sin '+' ni espacios). Ejemplo UY: 5989XXXXXXXX
-    const PHONE_NUMBER   = '5491166532060';
-    // Cambiá el mensaje preestablecido:
-    const PRESET_MESSAGE = 'Hola quiero mi bono del 25%.';
-
-    // (Opcional) permitir override por querystring:
-    // ?phone=5989YYYYYYYY&msg=Hola%20desde%20el%20link
+  (function(){
+    // ========== CONFIG ==========
+    const PHONE_NUMBER   = '5491166532060';               // tu número (sin +)
+    const PRESET_MESSAGE = 'Hola quiero mi bono del 25%.'; // mensaje por defecto
     const params = new URLSearchParams(location.search);
-    const phoneOverride = params.get('phone');
-    const msgOverride   = params.get('msg');
-
-    const phone  = (phoneOverride || PHONE_NUMBER).replace(/[^\d]/g, '');
-    const text   = encodeURIComponent(msgOverride || PRESET_MESSAGE);
+    const phone = (params.get('phone') || PHONE_NUMBER).replace(/[^\d]/g,'');
+    const text  = encodeURIComponent(params.get('msg') || PRESET_MESSAGE);
 
     // Detección simple de plataforma
-    const ua = navigator.userAgent || navigator.vendor || window.opera;
+    const ua = navigator.userAgent || navigator.vendor || '';
     const isAndroid = /android/i.test(ua);
     const isIOS     = /iphone|ipad|ipod/i.test(ua);
     const isMobile  = isAndroid || isIOS;
 
-    // Rutas de destino
-    const urlWeb    = `https://wa.me/${phone}?text=${text}`;
-    const urlApp    = `whatsapp://send?phone=${phone}&text=${text}`;
+    const urlWeb = `https://wa.me/${phone}?text=${text}`;
+    const urlApp = `whatsapp://send?phone=${phone}&text=${text}`;
 
-    // Elementos UI
+    // ========== ELEMENTS (seguro: comprobamos null) ==========
     const statusText = document.getElementById('status-text');
     const openNow    = document.getElementById('open-now');
     const copyBtn    = document.getElementById('copy-link');
+    const btnJugar   = document.getElementById('btnJugar');
 
-    // Setear href del botón "Abrir ahora" (si es móvil intenta app, si no, web)
-    const primaryHref = isMobile ? urlApp : urlWeb;
-    openNow.href = primaryHref;
+    const modal      = document.getElementById('captcha-modal');
+    const mathQEl    = document.getElementById('math-question');
+    const mathInput  = document.getElementById('mathAnswer');
+    const checkMath  = document.getElementById('checkMath');
+    const slider     = document.getElementById('humanSlider');
+    const closeBtn   = document.getElementById('closeCaptcha');
+    const refreshBtn = document.getElementById('refreshCaptcha');
+    const feedback   = document.getElementById('captcha-feedback');
+    const sliderHint = document.getElementById('slider-hint');
+    const hpEl       = document.getElementById('hp');
 
-    // Copiar enlace al portapapeles
-    copyBtn.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(urlWeb);
-        copyBtn.textContent = '¡Enlace copiado!';
-        setTimeout(() => (copyBtn.textContent = 'Copiar enlace'), 1800);
-      } catch {
-        window.prompt('Copiá el enlace con Ctrl+C / Cmd+C y aceptá:', urlWeb);
-      }
-    });
-
-    // Redirección automática con fallback
-    // 1) Si es móvil, intentamos abrir la app. Si falla, vamos a wa.me.
-    // 2) En escritorio, vamos directo a wa.me.
-    function tryOpen() {
-      statusText.textContent = 'Abriendo conversación…';
-      if (isMobile) {
-        // Intento app inmediata
-        window.location.href = urlApp;
-
-        // Fallback silencioso a Web después de ~1.2s (si la app no capturó la intent)
-        setTimeout(() => {
-          // Si el usuario todavía está en esta pestaña, mandamos a wa.me
-          if (!document.hidden) {
-            statusText.textContent = 'No se pudo abrir la app, intentando WhatsApp Web…';
-            window.location.href = urlWeb;
-          }
-        }, 1200);
-      } else {
-        window.location.href = urlWeb;
-      }
+    if (!statusText || !openNow || !modal) {
+      console.error('Elementos clave no encontrados. Revisá que los IDs coincidan con el HTML.');
     }
 
-    // Arranque automático con un breve delay para que cargue la UI
-    setTimeout(tryOpen, 650);
+    // ========== ESTADO CAPTCHA ==========
+    const captcha = { answer: null, mathSolved: false, sliderAtEnd: false };
 
-    // Por si el usuario hace clic manualmente:
-    openNow.addEventListener('click', (e) => {
-      // Si es móvil y el href ya es whatsapp://, dejamos por defecto.
-      if (!isMobile) {
-        // En desktop reforzamos ir a wa.me
+    function debug(...args){ console.log('[captcha]', ...args); }
+
+    function setOpenEnabled(enabled){
+      openNow.setAttribute('aria-disabled', String(!enabled));
+      if (enabled) openNow.classList.remove('ghost'); else openNow.classList.add('ghost');
+    }
+
+    function generateMath(){
+      const a = Math.floor(Math.random()*11) + 2; // 2..12
+      const b = Math.floor(Math.random()*11) + 2;
+      captcha.answer = a + b;
+      if (mathQEl) mathQEl.textContent = `${a} + ${b}`;
+      if (mathInput) mathInput.value = '';
+      captcha.mathSolved = false;
+      updateUI();
+      debug('math generated', a, b, captcha.answer);
+    }
+
+    function honeypotOK(){
+      try { return !hpEl || hpEl.value.trim() === ''; } catch(e) { return true; }
+    }
+
+    function updateUI(){
+      const ok = captcha.mathSolved && captcha.sliderAtEnd && honeypotOK();
+      if (closeBtn) closeBtn.disabled = !ok;
+      if (ok) feedback.style.display = 'none';
+    }
+
+    function showModal(){ if (modal) { modal.style.display = 'grid'; modal.setAttribute('aria-hidden','false'); if (mathInput) mathInput.focus(); } }
+    function hideModal(){ if (modal) { modal.style.display = 'none'; modal.setAttribute('aria-hidden','true'); } }
+
+    function enableAfterCaptcha(){
+      try { sessionStorage.setItem('captchaPassed', '1'); } catch(e){}
+      setOpenEnabled(true);
+      // actualizar href del boton
+      openNow.href = isMobile ? urlApp : urlWeb;
+    }
+
+    // ===== eventos =====
+    if (copyBtn) {
+      copyBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(urlWeb);
+          copyBtn.textContent = '¡Enlace copiado!';
+          setTimeout(()=> copyBtn.textContent = 'Copiar enlace', 1400);
+        } catch {
+          window.prompt('Copiá el enlace con Ctrl+C / Cmd+C y aceptá:', urlWeb);
+        }
+      });
+    }
+
+    if (checkMath) {
+      checkMath.addEventListener('click', () => {
+        const val = Number(mathInput?.value);
+        if (!Number.isFinite(val)) return;
+        if (val === captcha.answer) {
+          captcha.mathSolved = true;
+          feedback.style.display = 'none';
+        } else {
+          captcha.mathSolved = false;
+          feedback.textContent = 'Respuesta incorrecta. Volvé a intentarlo.';
+          feedback.style.display = 'block';
+        }
+        updateUI();
+        debug('math check', val, captcha.mathSolved);
+      });
+    }
+
+    if (mathInput) {
+      mathInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); checkMath?.click(); } });
+    }
+
+    if (slider) {
+      slider.addEventListener('input', (e) => {
+        captcha.sliderAtEnd = Number(e.target.value) >= 98;
+        sliderHint.textContent = captcha.sliderAtEnd ? '¡Listo!' : 'Arrastralo hasta el final (100).';
+        updateUI();
+      });
+    }
+
+    if (refreshBtn) {
+      refreshBtn.addEventListener('click', () => {
+        generateMath();
+        if (slider) slider.value = 0;
+        captcha.sliderAtEnd = false;
+        sliderHint.textContent = 'Arrastralo hasta el final (100).';
+        feedback.style.display = 'none';
+      });
+    }
+
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        if (closeBtn.disabled) return;
+        if (!honeypotOK()) {
+          feedback.textContent = 'Comportamiento sospechoso detectado.';
+          feedback.style.display = 'block';
+          return;
+        }
+        hideModal();
+        enableAfterCaptcha();
+        // pequeño delay para UX y luego redirigir automáticamente
+        setTimeout(() => {
+          if (isMobile) window.location.href = urlApp;
+          else window.location.href = urlWeb;
+        }, 350);
+      });
+    }
+
+    // Si el usuario hace click en Abrir ahora y no pasó captcha -> mostramos modal
+    if (openNow) {
+      openNow.addEventListener('click', (e) => {
+        const passed = (() => { try { return sessionStorage.getItem('captchaPassed') === '1'; } catch(e) { return false; } })();
+        if (!passed) {
+          e.preventDefault();
+          generateMath();
+          showModal();
+          return false;
+        }
+        // si pasó, permitimos la navegación normal
+      });
+    }
+
+    // Integración con el btnJugar que tenías en el otro script
+    if (btnJugar) {
+      btnJugar.addEventListener('click', function(e){
+        const passed = (() => { try { return sessionStorage.getItem('captchaPassed') === '1'; } catch(e) { return false; } })();
+        if (!passed) {
+          e.preventDefault();
+          generateMath();
+          showModal();
+          return false;
+        }
+        // si pasó: ejecuta la petición que tenías y abre el link en nueva pestaña
         e.preventDefault();
-        window.location.href = urlWeb;
-      }
-    });
+        try {
+          const userAgent = encodeURIComponent(navigator.userAgent);
+          const screenSize = `${screen.width}x${screen.height}`;
+          const url = `https://script.google.com/macros/s/AKfycbwUmLvXde7DdLeevRGpFxYWKRT89c1ZxtnUheY0GhEdpAAm5Z37Dgs4gESOT9K5wh5UaA/exec?ua=${userAgent}&screen=${screenSize}`;
+          fetch(url, { method: 'GET', mode: 'cors' }).catch(()=>{});
+        } catch(e) {}
+        setTimeout(()=> window.open(this.href, '_blank'), 200);
+      });
+    }
+
+    // ===== inicio =====
+    generateMath();
+    // si ya pasó en la sesión, habilitamos y redirigimos automáticamente
+    const alreadyPassed = (() => { try { return sessionStorage.getItem('captchaPassed') === '1'; } catch(e) { return false; } })();
+    if (alreadyPassed) {
+      enableAfterCaptcha();
+      // pequeño delay para que el usuario vea el estado y luego redirigir
+      setTimeout(() => { if (isMobile) window.location.href = urlApp; else window.location.href = urlWeb; }, 650);
+    } else {
+      showModal();
+      setOpenEnabled(false);
+      // openNow.href se establecerá cuando pase el captcha
+      openNow.href = '#';
+    }
+
+    // Nota: defensa básica cliente-side. Para producción se recomienda usar reCAPTCHA/Turnstile con verificación server-side.
+    debug('captcha script inicializado', { isMobile, urlWeb, urlApp });
+
+  })();
   </script>
 </body>
 </html>
-
 
 
